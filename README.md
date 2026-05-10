@@ -24,7 +24,7 @@ A single-page interactive HTML dashboard documenting the full system architectur
 Just open the file in any modern browser — no build step, no server needed.
 
 ```
-mcc_idealams_workflow.html
+iams_mc.html
 ```
 
 Click the tabs at the top to switch between views. EPICs are expandable; click any card to see its user stories and acceptance criteria.
