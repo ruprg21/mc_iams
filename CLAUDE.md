@@ -2,7 +2,7 @@
 
 ## Project
 
-Single-file HTML dashboard: `mcc_idealams_workflow.html`
+Single-file HTML dashboard: `iams_mc.html`
 Covers MCC IdealAMS system architecture — EPICs, integrations, candidate journey.
 
 ## File structure
