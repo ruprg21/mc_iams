@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MCC IdealAMS — System Architecture & Workflow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --sf-blue:#0176D3;--sf-blue-dark:#014486;--sf-blue-light:#EBF4FF;
+    --sf-teal:#06A59A;--sf-teal-light:#E8F8F7;
+    --sf-purple:#7B5EA7;--sf-purple-light:#F3EFFB;
+    --sf-orange:#DD5A0A;--sf-orange-light:#FEF0E6;
+    --sf-green:#2E844A;--sf-green-light:#EBF5EE;
+    --sf-red:#BA0517;--sf-red-light:#FEE9EA;
+    --sf-yellow:#A87835;--sf-yellow-light:#FEF9EE;
+    --sf-pink:#C23F9A;--sf-pink-light:#FBF0F8;
+    --bg:#F3F3F3;--surface:#FFFFFF;--surface2:#FAFAFA;
+    --border:#E5E5E5;--border2:#D8D8D8;
+    --text:#181818;--text-mid:#444;--text-muted:#706E6B;
+    --shadow-sm:0 1px 4px rgba(0,0,0,.08);
+    --shadow-md:0 4px 16px rgba(0,0,0,.10);
+    --shadow-lg:0 8px 32px rgba(0,0,0,.12);
+    --r:10px;--rl:16px;
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.5}
+
+  /* NAV */
+  .topbar{background:var(--sf-blue-dark);padding:0 28px;height:50px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+  .tb-logo{display:flex;align-items:center;gap:10px;color:#fff;font-weight:800;font-size:15px}
+  .tb-cloud{background:#fff;color:var(--sf-blue-dark);border-radius:6px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900}
+  .tb-sep{width:1px;height:22px;background:rgba(255,255,255,.2)}
+  .tb-sub{color:rgba(255,255,255,.8);font-size:13px;font-weight:500}
+  .tb-sp{flex:1}
+  .tb-badge{background:rgba(255,255,255,.14);color:#fff;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;border:1px solid rgba(255,255,255,.2);font-family:'JetBrains Mono',monospace}
+
+  /* PAGE */
+  .page{max-width:1440px;margin:0 auto;padding:24px 24px 60px}
+
+  /* HEADER CARD */
+  .page-hdr{background:var(--surface);border-radius:var(--rl);border:1px solid var(--border);padding:24px 28px;margin-bottom:20px;box-shadow:var(--shadow-sm);display:flex;align-items:center;gap:24px;flex-wrap:wrap}
+  .hdr-left{flex:1;min-width:260px}
+  .hdr-eyebrow{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--sf-blue);margin-bottom:5px;display:flex;align-items:center;gap:6px}
+  .hdr-eyebrow::before{content:'';width:14px;height:2px;background:var(--sf-blue);border-radius:2px}
+  h1{font-size:clamp(20px,3vw,30px);font-weight:800;letter-spacing:-.4px;line-height:1.2}
+  h1 em{color:var(--sf-blue);font-style:normal}
+  .hdr-sub{color:var(--text-muted);font-size:12px;margin-top:4px}
+  .kpi-strip{display:flex;gap:0;border:1px solid var(--border);border-radius:var(--r);overflow:hidden;flex-wrap:wrap}
+  .kpi{padding:12px 20px;text-align:center;flex:1;min-width:80px;border-right:1px solid var(--border)}
+  .kpi:last-child{border-right:none}
+  .kpi-n{font-size:24px;font-weight:800;color:var(--sf-blue);font-family:'JetBrains Mono',monospace;line-height:1}
+  .kpi-l{font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-top:2px}
+
+  /* TABS */
+  .tabs{display:flex;gap:4px;margin-bottom:18px;background:var(--surface);padding:4px;border-radius:var(--r);border:1px solid var(--border);width:fit-content;box-shadow:var(--shadow-sm)}
+  .tab{padding:7px 20px;border-radius:7px;cursor:pointer;font-size:13px;font-weight:600;border:none;background:none;color:var(--text-muted);transition:all .16s;font-family:inherit;display:flex;align-items:center;gap:6px}
+  .tab.active{background:var(--sf-blue);color:#fff;box-shadow:0 2px 8px rgba(1,118,211,.3)}
+  .tab:hover:not(.active){background:var(--sf-blue-light);color:var(--sf-blue)}
+
+  /* VIEWS */
+  .view{display:none}.view.active{display:block;animation:fi .2s ease}
+  @keyframes fi{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+
+  /* ─── FLOW ─── */
+  .flow-legend{display:flex;gap:14px;flex-wrap:wrap;padding:12px 18px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);margin-bottom:18px;align-items:center}
+  .li{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-mid);font-weight:500}
+  .ld{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+  .li-hint{margin-left:auto;font-size:11px;color:var(--text-muted)}
+
+  .flow-canvas{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:28px;box-shadow:var(--shadow-sm);overflow-x:auto}
+  .flow-sec{margin-bottom:32px}.flow-sec:last-child{margin-bottom:0}
+  .fsec-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:var(--text-muted);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+  .fsec-lbl::after{content:'';flex:1;height:1px;background:var(--border)}
+  .frow{display:flex;align-items:center;gap:0;flex-wrap:nowrap}.frow+.frow{margin-top:10px}
+
+  .fn{flex-shrink:0;min-width:130px;padding:10px 14px;border-radius:10px;font-size:12px;font-weight:700;text-align:center;cursor:pointer;transition:all .16s;border:2px solid;line-height:1.3;position:relative;box-shadow:var(--shadow-sm)}
+  .fn:hover{transform:translateY(-2px);box-shadow:var(--shadow-md)}
+  .fn small{font-size:9px;font-weight:500;opacity:.7;display:block;margin-top:2px;font-family:'JetBrains Mono',monospace}
+  .fn-badge{position:absolute;top:-8px;right:-8px;font-size:8px;font-weight:800;padding:2px 6px;border-radius:10px;text-transform:uppercase;letter-spacing:.4px;border:2px solid white;line-height:1.4}
+
+  .fa{flex-shrink:0;display:flex;flex-direction:column;align-items:center;padding:0 3px}
+  .fa-line{height:2px;width:32px;background:var(--border2);position:relative}
+  .fa-line::after{content:'›';position:absolute;right:-7px;top:-9px;color:var(--text-muted);font-size:16px}
+  .fa-lbl{font-size:9px;color:var(--text-muted);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.5px;margin-top:1px;white-space:nowrap}
+
+  /* ─── EPICs ─── */
+  .epic-toolbar{display:flex;gap:7px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
+  .fbtn{padding:5px 14px;border-radius:20px;font-size:12px;font-weight:600;border:1.5px solid var(--border);background:var(--surface);cursor:pointer;transition:all .15s;font-family:inherit;color:var(--text-mid)}
+  .fbtn:hover,.fbtn.active{background:var(--sf-blue);color:#fff;border-color:var(--sf-blue);box-shadow:0 2px 8px rgba(1,118,211,.25)}
+  .eg{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+
+  .ec{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--rl);overflow:hidden;transition:all .16s;box-shadow:var(--shadow-sm);min-width:0}
+  .ec:hover{box-shadow:var(--shadow-md);border-color:var(--border2);transform:translateY(-1px)}
+  .ec.open{border-color:var(--sf-blue);box-shadow:0 0 0 3px rgba(1,118,211,.09),var(--shadow-md)}
+  .ec-stripe{height:5px;flex-shrink:0}
+  .ec-hdr{display:grid;grid-template-columns:38px 1fr auto;align-items:start;gap:10px;padding:14px 16px 10px;cursor:pointer;min-width:0}
+  .ec-ico{width:38px;height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;border:1.5px solid}
+  .ec-nm{font-size:13px;font-weight:700;color:var(--text);line-height:1.3;word-break:break-word;min-width:0}
+  .ec-pills{display:flex;align-items:center;gap:5px;margin-top:4px;flex-wrap:wrap}
+  .pill{display:inline-flex;align-items:center;font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;font-family:'JetBrains Mono',monospace;border:1px solid;white-space:nowrap}
+  .ec-cnt{flex-shrink:0;background:var(--sf-blue-light);color:var(--sf-blue);font-size:16px;font-weight:800;padding:5px 10px;border-radius:7px;text-align:center;font-family:'JetBrains Mono',monospace;line-height:1;min-width:52px}
+  .ec-cnt span{font-size:9px;font-weight:600;display:block;color:var(--text-muted)}
+  .ec-ints{padding:0 16px 10px;display:flex;gap:5px;flex-wrap:wrap}
+  .ic{font-size:10px;font-weight:600;padding:2px 8px;border-radius:6px;background:var(--sf-orange-light);color:var(--sf-orange);border:1px solid rgba(221,90,10,.2);font-family:'JetBrains Mono',monospace}
+  .ic.none{background:var(--surface2);color:var(--text-muted);border-color:var(--border)}
+  .ec-body{display:none;border-top:1px solid var(--border)}
+  .ec.open .ec-body{display:block}
+  .ec-desc{padding:12px 16px;font-size:12px;color:var(--text-mid);line-height:1.7;background:var(--surface2);border-bottom:1px solid var(--border)}
+  .sub-tbl{width:100%;border-collapse:collapse}
+  .sub-tbl tr{border-bottom:1px solid var(--border)}.sub-tbl tr:last-child{border-bottom:none}
+  .sub-tbl td{padding:8px 16px;font-size:12px}
+  .sub-tbl td:first-child{color:var(--text-mid)}
+  .sub-tbl td:last-child{text-align:right;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--sf-blue);font-weight:600;white-space:nowrap}
+  .st-sec{padding:10px 16px 14px;border-top:1px solid var(--border)}
+  .st-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:7px}
+  .st{background:var(--sf-blue-light);border:1px solid rgba(1,118,211,.15);border-radius:7px;padding:7px 10px;font-size:11px;color:var(--text-mid);margin-bottom:4px;line-height:1.5;display:flex;gap:7px;align-items:flex-start}
+  .st:last-child{margin-bottom:0}
+  .st-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:5px}
+
+  /* ─── INTEGRATIONS ─── */
+  .ig{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px}
+  .icard{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--rl);overflow:hidden;box-shadow:var(--shadow-sm);transition:all .16s}
+  .icard:hover{box-shadow:var(--shadow-md);transform:translateY(-2px)}
+  .ict{padding:18px 18px 12px}
+  .ich{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .ii{width:42px;height:42px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;border:1.5px solid}
+  .in{font-size:14px;font-weight:700;color:var(--text)}
+  .it{font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;font-family:'JetBrains Mono',monospace;margin-top:1px}
+  .idir{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;margin-bottom:9px;font-family:'JetBrains Mono',monospace;border:1px solid}
+  .idesc{font-size:12px;color:var(--text-mid);line-height:1.7}
+  .icf{background:var(--surface2);border-top:1px solid var(--border);padding:12px 18px}
+  .icfl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:7px}
+  .ictags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px}
+  .stag{font-size:10px;padding:3px 7px;border-radius:6px;background:var(--surface);border:1px solid var(--border);color:var(--text-mid);font-family:'JetBrains Mono',monospace;font-weight:500}
+  .fli{font-size:11px;color:var(--text-mid);display:flex;gap:5px;padding:2px 0}
+  .fla{color:var(--sf-teal);font-weight:700;flex-shrink:0}
+
+  /* ─── JOURNEY ─── */
+  .jw{display:flex;flex-direction:column;gap:0}
+  .js{display:flex;gap:0;opacity:0;transform:translateX(-14px);animation:si .32s forwards}
+  @keyframes si{to{opacity:1;transform:none}}
+  .jspine{display:flex;flex-direction:column;align-items:center;width:60px;flex-shrink:0}
+  .jdot{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;border:3px solid;font-family:'JetBrains Mono',monospace;flex-shrink:0;z-index:1;box-shadow:var(--shadow-sm)}
+  .jline{flex:1;width:2px;background:var(--border);margin:3px 0}
+  .jcard{flex:1;background:var(--surface);border:1.5px solid var(--border);border-radius:var(--rl);margin:0 0 14px 14px;padding:18px 22px;box-shadow:var(--shadow-sm);transition:box-shadow .16s}
+  .jcard:hover{box-shadow:var(--shadow-md)}
+  .jtag{display:inline-block;font-size:10px;font-weight:700;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px;color:var(--sf-blue);background:var(--sf-blue-light);padding:3px 9px;border-radius:6px;margin-bottom:9px;border:1px solid rgba(1,118,211,.2)}
+  .jtitle{font-size:15px;font-weight:800;color:var(--text);margin-bottom:5px}
+  .jdesc{font-size:12px;color:var(--text-mid);line-height:1.7;margin-bottom:12px}
+  .jsys{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px}
+  .jsysp{font-size:11px;font-weight:600;padding:4px 11px;border-radius:20px;border:1.5px solid;font-family:'JetBrains Mono',monospace}
+  .jsts{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px}
+  .jst{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:11px;color:var(--text-mid);line-height:1.5;border-left:3px solid}
+  .jstid{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;display:block;margin-bottom:1px}
+
+  /* TOOLTIP */
+  .tt{position:fixed;z-index:9999;pointer-events:none;background:var(--surface);border:1.5px solid var(--border);border-radius:12px;padding:14px 16px;max-width:290px;box-shadow:var(--shadow-lg);opacity:0;transition:opacity .14s}
+  .tt.on{opacity:1}
+  .ttt{font-size:13px;font-weight:800;margin-bottom:5px}
+  .ttb{font-size:12px;color:var(--text-mid);line-height:1.6}
+  ::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:10px}
+  button{font-family:inherit}
+</style>
+</head>
+<body>
+<script>
+(function(){
+  var PASSWORD = 'MCC2025';
+  var KEY = 'mcc_ams_auth_v2';
+  if(localStorage.getItem(KEY) === '1') return;
+  // Build gate UI
+  var gate = document.createElement('div');
+  gate.id = 'pw-gate';
+  gate.style.cssText = 'position:fixed;inset:0;z-index:99999;background:linear-gradient(135deg,#014486 0%,#0176D3 100%);display:flex;align-items:center;justify-content:center;font-family:Plus Jakarta Sans,sans-serif';
+  gate.innerHTML = `
+    <div style="background:#fff;border-radius:18px;padding:40px 44px;width:360px;text-align:center;box-shadow:0 24px 64px rgba(0,0,0,.25)">
+      <div style="font-size:32px;margin-bottom:12px">⚡</div>
+      <div style="font-size:20px;font-weight:800;color:#014486;margin-bottom:4px">IdealAMS Dashboard</div>
+      <div style="font-size:13px;color:#706E6B;margin-bottom:28px">MCC · New PA Program · Confidential</div>
+      <input id="pw-input" type="password" placeholder="Enter password"
+        style="width:100%;padding:11px 16px;border:1.5px solid #E5E5E5;border-radius:9px;font-size:14px;font-family:inherit;outline:none;margin-bottom:12px;box-sizing:border-box;transition:border-color .2s"/>
+      <div id="pw-err" style="color:#BA0517;font-size:12px;margin-bottom:10px;min-height:18px"></div>
+      <button id="pw-btn" style="width:100%;padding:12px;background:#0176D3;color:#fff;border:none;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;transition:background .2s">
+        Access Dashboard
+      </button>
+      <div style="margin-top:20px;font-size:11px;color:#aaa">Stratford · 108 ideaspace · Internal use only</div>
+    </div>`;
+  document.body.appendChild(gate);
+  document.getElementById('pw-input').focus();
+  function tryPassword(){
+    var val = document.getElementById('pw-input').value;
+    if(val === PASSWORD){
+      localStorage.setItem(KEY,'1');
+      gate.style.opacity='0';
+      gate.style.transition='opacity .4s';
+      setTimeout(function(){ gate.remove(); }, 400);
+    } else {
+      var err = document.getElementById('pw-err');
+      var inp = document.getElementById('pw-input');
+      err.textContent = 'Incorrect password. Please try again.';
+      inp.style.borderColor = '#BA0517';
+      inp.value = '';
+      inp.focus();
+      setTimeout(function(){ err.textContent=''; inp.style.borderColor='#E5E5E5'; }, 2500);
+    }
+  }
+  document.getElementById('pw-btn').addEventListener('click', tryPassword);
+  document.getElementById('pw-input').addEventListener('keydown', function(e){ if(e.key==='Enter') tryPassword(); });
+  document.getElementById('pw-input').addEventListener('focus', function(){ this.style.borderColor='#0176D3'; });
+  document.getElementById('pw-input').addEventListener('blur',  function(){ this.style.borderColor='#E5E5E5'; });
+})();
+</script>
+
+<div class="topbar">
+  <div class="tb-logo"><div class="tb-cloud">SF</div>IdealAMS</div>
+  <div class="tb-sep"></div>
+  <div class="tb-sub">Medical Council of Canada — New PA Program</div>
+  <div class="tb-sp"></div>
+  <div class="tb-badge">MVP · Phase 1</div>
+  <div class="tb-badge" style="background:rgba(46,132,74,.22);border-color:rgba(46,132,74,.4)">108 ideaspace · Stratford</div>
+  <button onclick="localStorage.removeItem('mcc_ams_auth_v2');location.reload()" style="background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);color:rgba(255,255,255,0.8);font-size:11px;font-weight:600;padding:4px 12px;border-radius:6px;cursor:pointer;font-family:inherit;margin-left:8px">🔒 Lock</button>
+</div>
+
+<div class="page">
+
+  <div class="page-hdr">
+    <div class="hdr-left">
+      <div class="hdr-eyebrow">System Architecture &amp; Workflow Map</div>
+      <h1>MCC <em>IdealAMS</em> Implementation Overview</h1>
+      <div class="hdr-sub">Salesforce-based Application Management System · EPICs · Integrations · Candidate Journey</div>
+    </div>
+    <div class="kpi-strip">
+      <div class="kpi"><div class="kpi-n">14</div><div class="kpi-l">EPICs</div></div>
+      <div class="kpi"><div class="kpi-n">925+</div><div class="kpi-l">Stories</div></div>
+      <div class="kpi"><div class="kpi-n">10</div><div class="kpi-l">Integrations</div></div>
+      <div class="kpi"><div class="kpi-n">3</div><div class="kpi-l">Sprints</div></div>
+      <div class="kpi"><div class="kpi-n">3</div><div class="kpi-l">Projects</div></div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="sw('flow',this)">🗺 System Flow</button>
+    <button class="tab" onclick="sw('epics',this)">📦 EPICs &amp; Stories</button>
+    <button class="tab" onclick="sw('integrations',this)">🔌 Integrations</button>
+    <button class="tab" onclick="sw('journey',this)">👤 Candidate Journey</button>
+  </div>
+
+  <!-- FLOW -->
+  <div class="view active" id="view-flow">
+    <div id="flow-root" style="padding:4px 0"></div>
+  </div>
+
+  <!-- EPICs -->
+  <div class="view" id="view-epics">
+    <div class="epic-toolbar">
+      <button class="fbtn active" onclick="fe('all',this)">All EPICs</button>
+      <button class="fbtn" onclick="fe('1',this)">Sprint 1</button>
+      <button class="fbtn" onclick="fe('2',this)">Sprint 2</button>
+      <button class="fbtn" onclick="fe('3',this)">Sprint 3</button>
+      <button class="fbtn" onclick="fe('vh',this)">🔴 Very High Complexity</button>
+      <button class="fbtn" onclick="fe('int',this)">⚡ Has Integrations</button>
+    </div>
+    <div class="eg" id="eg"></div>
+  </div>
+
+  <!-- INTEGRATIONS -->
+  <div class="view" id="view-integrations">
+    <div class="ig" id="ig"></div>
+  </div>
+
+  <!-- JOURNEY -->
+  <div class="view" id="view-journey">
+    <div class="jw" id="jw"></div>
+  </div>
+
+</div>
+
+<div class="tt" id="tt"><div class="ttt" id="ttt"></div><div class="ttb" id="ttb"></div></div>
+
+<script>
+const EPICS=[
+  {name:'PA Account & Profile Creation',icon:'👤',color:'#0176D3',bg:'#EBF4FF',stories:170,sprint:1,cx:'Medium',ints:['RISR (exam path)','MINC','OKTA / Auth0'],desc:'Candidate account registration, login, and profile management. Covers new account creation, existing account reactivation, passwordless magic-link login, username recovery, and password reset. Many business rules for historical MCC data and account reactivation.',subs:[{n:'Existing Account Check',c:14},{n:'Registration',c:31},{n:'Login',c:37},{n:'Passwordless / Magic Link Login',c:29},{n:'Contact MCC Support (from login)',c:3},{n:'Forgot Username',c:19},{n:'Password Reset by Username/Email',c:37}],samples:['As a candidate, I want to create a new PA account with my email address','As a returning candidate, I want to reactivate my historical MCC account','As a candidate, I want to login using a magic link sent to my email','As a candidate, I want to reset my password via username or email','As the system, I want to check for existing accounts before allowing new registration']},
+  {name:'SDO Process',icon:'📞',color:'#0176D3',bg:'#EBF4FF',stories:69,sprint:1,cx:'Low',ints:['TalkDesk CCaaS'],desc:'Service Desk Operations. Handles all inbound candidate contacts via phone, email, and live chat. Routes and creates support cases, manages escalations, automated case handling, and resolution workflows.',subs:[{n:'Support Case Creation by Service Desk Agent & Case Escalation',c:10},{n:'Case Review, Assignment & Collaboration with MCC Review Agent Team',c:7},{n:'Candidate Communication',c:5},{n:'Case Resolution & Closure',c:9},{n:'Abandoned Case Handling',c:2},{n:'Automated Case Escalation in PA',c:15},{n:'Login Into Candidate Experience (agent-assisted)',c:12},{n:'Initiate Password Reset for Candidate (agent-assisted)',c:5}],samples:['As a candidate, I want to contact the service desk via phone, email, or live chat','As the TalkDesk system, I want to route candidate inquiries to available agents','As the PA system, I want TalkDesk to look up candidate records during a live call','As a service desk agent, I want to see candidate profile in a screen pop in TalkDesk','As the system, I want to automatically escalate unresolved cases after defined thresholds']},
+  {name:'ID Verification (Persona)',icon:'🪪',color:'#7B5EA7',bg:'#F3EFFB',stories:89,sprint:1,cx:'Medium',ints:['Persona (OCR)','RavenDB','MINC'],desc:'Identity verification using Persona platform. Candidates upload government-issued ID through the PA portal and are redirected to Persona\'s hosted flow. Persona performs OCR and verification. Results flow back to IdealAMS. Documents captured and stored in RavenDB.',subs:[{n:'ID Verification Initiation & Status Update',c:13},{n:'Document Retrieval from Persona to PA',c:7},{n:'ID Verification by Persona',c:10},{n:'ID Verification Inquiry Expiration (48hr)',c:7},{n:'Persona OCR Process for SVR Documents',c:9},{n:'MCC Review & Candidate Communication',c:15},{n:'Document Capture in RavenDB for Storage',c:8},{n:'Retry Handling (max 3 attempts)',c:5}],samples:['Candidate clicks "Verify Identity Now" → redirected to Persona hosted flow','Candidate selects ONE government ID document type to upload','Persona captures document & updates inquiry status to "Pending"','Verification result updates Candidate ID Verification Status in PA','Document file and OCR metadata fetched from Persona → stored in RavenDB','Inquiry expiration after 48 hours → Status set to "Expired" in PA']},
+  {name:'ECA Process',icon:'📋',color:'#2E844A',bg:'#EBF5EE',stories:130,sprint:2,cx:'Low',ints:[],desc:'Educational Credential Assessment. Document submission, review, eligibility checks, and outcome processing for foreign-trained physicians. Entirely self-contained within IdealAMS — no external integrations required.',subs:[{n:'Application Submission',c:25},{n:'Document Review & Validation',c:35},{n:'Eligibility Assessment',c:28},{n:'Outcome Processing & Communication',c:22},{n:'Fee Management',c:12},{n:'Appeals & Reconsideration',c:8}],samples:['As a candidate, I want to submit my ECA application with supporting documents','As a review agent, I want to assess educational credentials against MCC eligibility criteria','As the system, I want to notify candidates of ECA outcome via automated email','As a candidate, I want to appeal an ECA decision through the portal']},
+  {name:'Candidate Portal',icon:'🖥',color:'#0176D3',bg:'#EBF4FF',stories:60,sprint:2,cx:'Low',ints:['Stripe','RavenDB'],desc:'Candidate-facing portal experience within PA (WordPress). Document access and uploads stored in RavenDB. Payment processing via Stripe. Application status tracking. Secure file sharing controls.',subs:[{n:'Dashboard & Application Status Views',c:18},{n:'Document Upload & Management',c:20},{n:'Payment Processing (Stripe)',c:12},{n:'Application Tracking & History',c:10}],samples:['As a candidate, I want to view all my active applications and their status','As a candidate, I want to upload supporting documents from my portal','As a candidate, I want to pay application fees securely via Stripe','As a candidate, I want to control which documents are shared with third parties']},
+  {name:'SVR — Source Verification',icon:'🔍',color:'#BA0517',bg:'#FEE9EA',stories:120,sprint:2,cx:'Very High',ints:['ECFMG','CaRMS','Persona (OCR)','Stripe','RISR'],desc:'Source Verification Request — highest integration complexity. Verifies credentials directly with issuing institutions. Coordinates with ECFMG for foreign credentials, Persona for document OCR. Automated communications throughout. Final review and sign-off workflow.',subs:[{n:'SVR Application Initiation',c:20},{n:'Document Request to Source Institutions',c:25},{n:'ECFMG Integration & Verification',c:18},{n:'Persona Document OCR (SVR)',c:15},{n:'Payment Processing (Stripe)',c:10},{n:'Automated Communications to Candidates',c:15},{n:'Final Review & Sign-off Workflow',c:17}],samples:['As the system, I want to send automated communications to candidates at key stages','As the system, I want to support a final review process where review agents sign-off','As the system, I want to automatically generate release forms with prefilled details','As a candidate, I want to track the status of my source verification request','As the system, I want to integrate with ECFMG for foreign credential verification']},
+  {name:'Document Sharing & File Transfer',icon:'📁',color:'#06A59A',bg:'#E8F8F7',stories:55,sprint:2,cx:'Medium',ints:['CaRMS','Org Portal (MRAs)'],desc:'Manages secure document sharing with third-party organizations. API-based integration with CaRMS for residency matching data sharing (candidate-controlled). Org Portal for MRA organizations to access pre-selected documents.',subs:[{n:'CaRMS Data Integration',c:20},{n:'Organization Portal Management',c:18},{n:'Candidate Document Sharing Controls',c:10},{n:'File Transfer Audit & Tracking',c:7}],samples:['As a candidate, I want to control which data is shared with CaRMS','As the system, I want to provide API-based integration connecting IdealAMS with CaRMS','As an MRA organization, I want to access candidate documents via the Org Portal']},
+  {name:'AMR — Medical Registration',icon:'🏛',color:'#DD5A0A',bg:'#FEF0E6',stories:100,sprint:3,cx:'Very High',ints:['MRA Org Portals (~100 orgs)','Stripe','RavenDB'],desc:'Application for Medical Registration for provincial licensing. Very High complexity — ~100 MRA organizations. Configurable eligibility criteria, documentation requirements. Automated pre-selection of mandatory documents shared with MRAs. Per-organization configurable reports.',subs:[{n:'AMR Application Submission',c:20},{n:'Eligibility Criteria Configuration',c:15},{n:'Document Pre-selection & Sharing with MRAs',c:18},{n:'MRA Review Workflow',c:20},{n:'Experience Verification Process',c:12},{n:'Reporting & Analytics for MRAs (up to 3/org)',c:8},{n:'Application Status Tracking',c:7}],samples:['Configurable workflow allowing pre-selection of mandatory documents for MRAs','Ability to manage AMR application criteria including documentation requirements','As an MRA, I want to access pre-selected mandatory documents confirming eligibility','As a candidate, I want to track my AMR application status across multiple provinces','System supports up to 3 pre-determined org-specific reports in the MRA portal']},
+  {name:'Exams Process',icon:'📝',color:'#C23F9A',bg:'#FBF0F8',stories:85,sprint:3,cx:'Very High',ints:['RISR Apply','RISR Advance','Prometric'],desc:'Exam application, scheduling, and results for NAC, QE1, TDM. Two-way data exchange with RISR for applications, payments, scheduling, results. Prometric for physical exam delivery. Very High complexity due to business rules.',subs:[{n:'Exam Application Submission (via RISR)',c:22},{n:'Exam Scheduling (Prometric via RISR)',c:18},{n:'Results Processing & PRA Result Letters',c:20},{n:'NAC Artifacts & Results',c:12},{n:'QE1 & TDM Results',c:8},{n:'Reconsideration & Appeals',c:5}],samples:['As a candidate, I want to apply for an exam via RISR Apply through the PA portal (SSO)','As the system, I want to sync exam schedules from RISR to IdealAMS','As the system, I want to process and display exam results from RISR Advance','As a candidate, I want to receive my PRA Result Letter once results are finalized','As a staff member, I want to view complete candidate exam history in IdealAMS']},
+  {name:'New PA & Auth0 + Entra ID',icon:'🔐',color:'#7B5EA7',bg:'#F3EFFB',stories:30,sprint:3,cx:'Medium',ints:['OKTA / Auth0','Azure Entra ID'],desc:'Authentication and authorization integration. SSO across PA Portal, IdealAMS, RISR, and Persona. Role-based access control from Azure Active Directory to Salesforce permission sets. MFA and security policy enforcement.',subs:[{n:'SSO Configuration (Candidate & Staff)',c:12},{n:'Role-Based Access via Entra ID',c:10},{n:'MFA & Security Policies',c:8}],samples:['As a staff member, I want to login to IdealAMS using my Entra ID credentials','As the system, I want to enforce MFA via Auth0 for all users','As the system, I want to synchronize Entra ID roles with Salesforce permission sets']},
+  {name:'New PA & RavenDB',icon:'🗄',color:'#2E844A',bg:'#EBF5EE',stories:40,sprint:3,cx:'High',ints:['RavenDB (on-premise)','Salesforce Files'],desc:'RavenDB document storage integration. IdealAMS pushes candidate-uploaded documents to RavenDB and pulls documents/metadata for staff display. ETL-like sync. RavenDB is the source of truth (~2.8M docs, 2TB). Near-real-time via messaging queue.',subs:[{n:'Document Push from IdealAMS to RavenDB',c:14},{n:'Document Pull & Metadata Sync (ETL)',c:14},{n:'Messaging Queue & Eventual Consistency',c:8},{n:'Error Handling & Retry Logic',c:4}],samples:['As the system, I want to push candidate-uploaded documents to RavenDB for storage','As the system, I want to pull documents and metadata from RavenDB to display in IdealAMS','As the system, I want to maintain metadata sync via ETL process similar to current SQL sync','As the system, I want to delete file from Salesforce after successful storage in RavenDB']},
+  {name:'New PA & TalkDesk',icon:'📞',color:'#0176D3',bg:'#EBF4FF',stories:35,sprint:3,cx:'Medium',ints:['TalkDesk CTI','Salesforce Service Cloud'],desc:'Contact centre integration. TalkDesk uses OOTB TalkDesk-for-Salesforce connector. Candidate record lookup during live calls, screen pop for agents, automated case creation, call logging linked to case records.',subs:[{n:'CTI Screen Pop Integration',c:12},{n:'Candidate Identification in TalkDesk',c:10},{n:'Automated Case Creation from Call',c:8},{n:'Call Logging & Recording Link to Case',c:5}],samples:['As the TalkDesk system, I want to look up candidate records in PA during live calls','As a service desk agent, I want to see candidate information in a screen pop','As the system, I want to automatically create a support case from a TalkDesk call']},
+  {name:'New PA & CaRMS',icon:'🏥',color:'#06A59A',bg:'#E8F8F7',stories:25,sprint:3,cx:'Medium',ints:['CaRMS API'],desc:'One-way integration from IdealAMS to CaRMS. Replicates existing Physicians Apply web service API. Shares candidate data for residency matching. Candidate-controlled sharing permissions. Minimizes changes on CaRMS side.',subs:[{n:'Candidate Data Sharing to CaRMS',c:12},{n:'Sharing Permission Controls (Candidate)',c:8},{n:'Data Reliability & Error Handling',c:5}],samples:['As the system, I want to replicate PA web service API for CaRMS data exchange','As a candidate, I want full control over what data is shared with CaRMS']},
+  {name:'New PA & MINC',icon:'🏥',color:'#7B5EA7',bg:'#F3EFFB',stories:20,sprint:3,cx:'Medium',ints:['MINC National DB'],desc:'Integration with new MINC national credential database. Feeds physician profile data into account creation to reduce manual entry. Cross-references credentials for validation. Canadian MD identification and routing.',subs:[{n:'Account Pre-fill from MINC',c:10},{n:'Credential Cross-reference',c:7},{n:'Canadian MD Identification',c:3}],samples:['As the system, I want to pre-populate new accounts with MINC physician profile data','As the system, I want to cross-reference candidate credentials against MINC records']},
+];
+
+const INTS=[
+  {name:'Persona',icon:'🪪',color:'#7B5EA7',bg:'#F3EFFB',type:'ID Verification',dir:'Two-way',desc:'Real-time identity verification. Candidate uploaded to Persona hosted flow from PA Portal. OCR, document auth, biometric checks. Results and document metadata flow back to IdealAMS. Documents stored in RavenDB.',connects:['PA Portal','IdealAMS','RavenDB'],flows:['Inquiry ID + Account ID + Status → IdealAMS','Document file + OCR metadata → IdealAMS','Verified status updates → Candidate profile','Expired inquiry notifications → PA','Document file → RavenDB for storage']},
+  {name:'RavenDB',icon:'🗄',color:'#2E844A',bg:'#EBF5EE',type:'Document Storage (On-Premise)',dir:'Two-way',desc:'On-premise document store (2TB, ~2.8M docs). Primary store for all candidate-uploaded files. IdealAMS pushes/pulls via RavenDB APIs and ETL process. Near-real-time via messaging queue. Source of truth for all files.',connects:['IdealAMS','PA Portal','Persona'],flows:['Document files pushed from IdealAMS → RavenDB','Metadata sync via ETL (near-real-time)','Document links returned to IdealAMS for display','Retry logic on send failure','File deleted from Salesforce after successful store']},
+  {name:'RISR Apply + Advance',icon:'🧪',color:'#C23F9A',bg:'#FBF0F8',type:'Exam Management',dir:'Two-way',desc:'Exam management platform (RISR + Prometric). Two-way integration with IdealAMS and PA Portal. Full data exchange across application, payment, scheduling, and results. SSO from PA Portal (candidates) and IdealAMS (staff).',connects:['IdealAMS','PA Portal','Prometric'],flows:['Application details ↔ IdealAMS','Payment transactions ↔ IdealAMS','Exam schedules → IdealAMS','Results → IdealAMS','SSO (candidate from PA Portal + staff from IdealAMS)']},
+  {name:'TalkDesk CCaaS',icon:'📞',color:'#0176D3',bg:'#EBF4FF',type:'Contact Centre (CTI)',dir:'Two-way CTI',desc:'Contact centre platform. OOTB TalkDesk-for-Salesforce connector — no SSO required. Candidate lookup in IdealAMS during live calls. Screen pop for agents. Auto case creation. No WordPress integration in scope.',connects:['IdealAMS','Service Desk Agents'],flows:['Candidate lookup → IdealAMS during live call','Screen pop → Agent UI in TalkDesk','Case auto-created → IdealAMS from call','Call log linked to Case record in IdealAMS']},
+  {name:'CaRMS',icon:'🏥',color:'#06A59A',bg:'#E8F8F7',type:'Residency Matching',dir:'One-way (outbound)',desc:'Canadian Resident Matching Service. One-way outbound from IdealAMS to CaRMS. Replicates existing PA web service API. Candidate-controlled data sharing for residency matching. Minimizes changes on CaRMS side.',connects:['IdealAMS'],flows:['Candidate profile data → CaRMS API','Application status → CaRMS','Exam results → CaRMS (candidate controlled)','Sharing permissions enforced in IdealAMS']},
+  {name:'Stripe',icon:'💳',color:'#A87835',bg:'#FEF9EE',type:'Payment Processing',dir:'Two-way',desc:'Payment gateway for all MCC fees. Integrated with Candidate Portal, SVR, and AMR for fee collection, refunds, and reconsideration transactions.',connects:['Candidate Portal','SVR Process','AMR Process','IdealAMS'],flows:['Payment intent created → Stripe','Payment confirmed/failed → IdealAMS','Refund requests → Stripe','Transaction history → IdealAMS records']},
+  {name:'ECFMG',icon:'🎓',color:'#BA0517',bg:'#FEE9EA',type:'Credential Verification',dir:'Two-way',desc:'Educational Commission for Foreign Medical Graduates. API-based integration for source verification of foreign medical credentials within the SVR process.',connects:['IdealAMS (SVR Module)'],flows:['Credential verification requests → ECFMG API','Verification results → IdealAMS','Document authenticity status → Candidate SVR record','Status updates candidate workflow']},
+  {name:'OKTA / Auth0 + Entra ID',icon:'🔐',color:'#7B5EA7',bg:'#F3EFFB',type:'Identity & SSO (Hub)',dir:'Central Auth Hub',desc:'Central SSO identity provider. Enables seamless login across PA Portal, IdealAMS, RISR, and Persona. Manages MFA, passwordless magic-link login, role sync from Azure AD to Salesforce permission sets.',connects:['PA Portal','IdealAMS','RISR','Persona','TalkDesk'],flows:['Auth tokens → All connected systems','Entra ID roles → Salesforce permissions','MFA enforcement across all surfaces','Magic link delivery for passwordless login']},
+  {name:'MINC (New)',icon:'🏥',color:'#0176D3',bg:'#EBF4FF',type:'Credential Database',dir:'Inbound to IdealAMS',desc:'National physician credential database. Feeds into account creation to pre-populate physician profile data. Cross-referencing for ID and profile validation. Canadian MD credential recognition and routing.',connects:['IdealAMS (Account Creation)','ID Verification Module'],flows:['Physician credential data → Account pre-fill','MINC ID → Profile matching in IdealAMS','Canadian MD flag → Application routing logic']},
+  {name:'MS Outlook',icon:'📧',color:'#0176D3',bg:'#EBF4FF',type:'Email Communication',dir:'Outbound',desc:'Email integration for automated candidate communications and staff notifications. Configured via IdealAMS workflow automation. Covers status updates, ID verification confirmations, case escalation alerts, and document request emails.',connects:['IdealAMS workflows','Candidates','Staff'],flows:['Automated email triggers → MS Outlook → Candidate','Application status notifications','Case escalation alerts → Staff','Document request emails to institutions']},
+];
+
+const JOURNEY=[
+  {num:'01',title:'Candidate Arrives at PA Portal',color:'#0176D3',bg:'#EBF4FF',desc:'A physician accesses the Physicians Apply portal (WordPress). First-time users register; returning users login via email/password, magic link (passwordless), or SSO via OKTA/Auth0. System checks for existing historical MCC accounts to prevent duplicates.',systems:[{n:'PA Portal (WordPress)',c:'#7B5EA7'},{n:'OKTA / Auth0',c:'#7B5EA7'},{n:'Entra ID',c:'#7B5EA7'},{n:'MINC (pre-fill)',c:'#0176D3'}],epic:'PA Account & Profile Creation — 170 stories · Sprint 1',stories:[{id:'APC-001',t:'Existing account check before new registration',c:'#0176D3'},{id:'APC-012',t:'Register new account with email verification',c:'#0176D3'},{id:'APC-031',t:'Login with username and password',c:'#0176D3'},{id:'APC-043',t:'Passwordless magic link login',c:'#0176D3'},{id:'APC-060',t:'Forgot username / password reset flow',c:'#0176D3'}]},
+  {num:'02',title:'Identity Verification',color:'#7B5EA7',bg:'#F3EFFB',desc:'Candidate completes mandatory identity verification. Redirected to Persona\'s hosted flow. Uploads government-issued ID (max 10MB). Persona performs OCR and biometric verification. Results posted back to IdealAMS. Documents stored in RavenDB. Up to 3 retry attempts.',systems:[{n:'Persona (ID + OCR)',c:'#7B5EA7'},{n:'IdealAMS (Salesforce)',c:'#2E844A'},{n:'RavenDB',c:'#2E844A'}],epic:'ID Verification — Persona Integration — 89 stories · Sprint 1',stories:[{id:'IDV-001',t:'Click "Verify Identity Now" → redirect to Persona',c:'#7B5EA7'},{id:'IDV-005',t:'Select government ID document type and country',c:'#7B5EA7'},{id:'IDV-010',t:'Persona performs OCR + document verification',c:'#7B5EA7'},{id:'IDV-015',t:'Verification result updates PA candidate status',c:'#7B5EA7'},{id:'IDV-020',t:'Document file stored in RavenDB',c:'#7B5EA7'},{id:'IDV-025',t:'Candidate name updated from verified ID (OCR)',c:'#7B5EA7'}]},
+  {num:'03',title:'Submit Application',color:'#2E844A',bg:'#EBF5EE',desc:'Candidate selects and submits their primary application — ECA (credential assessment), SVR (source verification), LMCC exam, or AMR (medical registration). Each triggers a distinct workflow in IdealAMS. Fees collected via Stripe at submission.',systems:[{n:'IdealAMS (Salesforce)',c:'#2E844A'},{n:'Stripe (payments)',c:'#A87835'},{n:'ECFMG (SVR only)',c:'#BA0517'}],epic:'ECA (130) · SVR (120) · AMR (100) · LMCC — Sprint 2 & 3',stories:[{id:'ECA-001',t:'Upload educational credential documents',c:'#2E844A'},{id:'SVR-001',t:'Initiate source verification request',c:'#BA0517'},{id:'SVR-020',t:'System sends document request to source institution',c:'#BA0517'},{id:'PAY-001',t:'Pay application fee via Stripe',c:'#A87835'},{id:'AMR-001',t:'Initiate AMR for provincial medical registration',c:'#DD5A0A'}]},
+  {num:'04',title:'Exam Registration',color:'#C23F9A',bg:'#FBF0F8',desc:'Candidate registers for NAC, QE1, TDM, or other MCC exams. SSO from PA Portal into RISR Apply. Application details, scheduling, and results flow two-way between RISR and IdealAMS. Prometric handles physical exam delivery.',systems:[{n:'RISR Apply',c:'#C23F9A'},{n:'RISR Advance',c:'#C23F9A'},{n:'Prometric',c:'#DD5A0A'},{n:'IdealAMS',c:'#2E844A'}],epic:'Exams Process — 85 stories · Sprint 3',stories:[{id:'EXM-001',t:'SSO from PA Portal into RISR Apply',c:'#C23F9A'},{id:'EXM-010',t:'Submit exam application → synced to IdealAMS',c:'#C23F9A'},{id:'EXM-025',t:'Schedule exam via Prometric (through RISR)',c:'#C23F9A'},{id:'EXM-040',t:'Results from RISR Advance → IdealAMS',c:'#C23F9A'},{id:'EXM-055',t:'PRA Result Letter generated in PA',c:'#C23F9A'}]},
+  {num:'05',title:'Document Management & Sharing',color:'#06A59A',bg:'#E8F8F7',desc:'All documents uploaded via PA Portal are stored in RavenDB. Candidates control what is shared. CaRMS integration enables residency application data sharing. MRA organizations access pre-selected mandatory documents via Org Portal for AMR review.',systems:[{n:'RavenDB',c:'#2E844A'},{n:'CaRMS',c:'#06A59A'},{n:'MRA Org Portal',c:'#DD5A0A'},{n:'IdealAMS',c:'#2E844A'}],epic:'Document Sharing & File Transfer — 55 stories · Sprint 2',stories:[{id:'DOC-001',t:'Upload documents → stored in RavenDB',c:'#06A59A'},{id:'DOC-010',t:'Candidate controls data shared with CaRMS',c:'#06A59A'},{id:'DOC-020',t:'MRA accesses pre-selected docs via Org Portal',c:'#06A59A'},{id:'DOC-030',t:'Document audit trail tracked in IdealAMS',c:'#06A59A'}]},
+  {num:'06',title:'Support & Case Management',color:'#0176D3',bg:'#EBF4FF',desc:'Candidate contacts MCC via phone (TalkDesk), email, or portal. Service desk agents receive a screen pop with the full candidate profile. Cases are created, routed, escalated, and resolved in IdealAMS. Automated escalation after defined thresholds. Closure emails via MS Outlook.',systems:[{n:'TalkDesk (CCaaS)',c:'#0176D3'},{n:'IdealAMS (Salesforce)',c:'#2E844A'},{n:'MS Outlook',c:'#0176D3'}],epic:'SDO Process — 69 stories · Sprint 1',stories:[{id:'SDO-001',t:'Candidate calls → TalkDesk routes to agent',c:'#0176D3'},{id:'SDO-005',t:'Screen pop: full candidate profile shown in TalkDesk',c:'#0176D3'},{id:'SDO-015',t:'Agent creates case in IdealAMS during call',c:'#0176D3'},{id:'SDO-030',t:'Automated escalation when threshold not met',c:'#0176D3'},{id:'SDO-050',t:'Case resolved → automated closure email sent',c:'#0176D3'}]},
+];
+
+function renderEpics(){
+  document.getElementById('eg').innerHTML=EPICS.map((e,i)=>{
+    const cxColor = e.cx==='Very High'?'#BA0517':e.cx==='High'?'#DD5A0A':'#2E844A';
+    const cxBg    = e.cx==='Very High'?'#FEE9EA':e.cx==='High'?'#FEF0E6':'#EBF5EE';
+    const cxIcon  = e.cx==='Very High'?'🔴':e.cx==='High'?'🟠':'🟢';
+    const intBar  = e.ints.length===0
+      ? `<span class="ic none">No external integrations</span>`
+      : e.ints.map(x=>`<span class="ic">⚡ ${x}</span>`).join('');
+    const subRows = e.subs.map(s=>`<tr>
+      <td style="padding:9px 16px;font-size:12px;color:var(--text-mid)">${s.n}</td>
+      <td style="padding:9px 16px;font-size:12px;font-family:'JetBrains Mono',monospace;font-weight:700;color:${e.color};text-align:right;white-space:nowrap">${s.c} stories</td>
+    </tr>`).join('');
+    const storyItems = e.samples.map(s=>`
+      <div style="display:flex;gap:8px;align-items:flex-start;padding:7px 0;border-bottom:1px solid var(--border)">
+        <div style="width:6px;height:6px;border-radius:50%;background:${e.color};flex-shrink:0;margin-top:5px"></div>
+        <div style="font-size:12px;color:var(--text-mid);line-height:1.5">${s}</div>
+      </div>`).join('');
+    return `<div class="ec" id="ec${i}" data-sprint="${e.sprint}" data-cx="${e.cx}" data-int="${e.ints.length>0?'y':'n'}">
+
+      <div style="height:5px;background:${e.color}"></div>
+
+      <div onclick="te(${i})" style="display:flex;align-items:center;gap:10px;padding:14px 16px 10px;cursor:pointer">
+        <div style="width:40px;height:40px;border-radius:10px;background:${e.bg};border:1.5px solid ${e.color}44;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${e.icon}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:700;color:var(--text);line-height:1.3">${e.name}</div>
+          <div style="display:flex;gap:5px;margin-top:5px;flex-wrap:wrap">
+            <span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;font-family:'JetBrains Mono',monospace;background:${e.bg};color:${e.color};border:1px solid ${e.color}33">Sprint ${e.sprint}</span>
+            <span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;font-family:'JetBrains Mono',monospace;background:${cxBg};color:${cxColor};border:1px solid ${cxColor}33">${cxIcon} ${e.cx}</span>
+          </div>
+        </div>
+        <div style="background:${e.bg};color:${e.color};font-size:20px;font-weight:800;padding:6px 12px;border-radius:8px;text-align:center;font-family:'JetBrains Mono',monospace;line-height:1;flex-shrink:0">
+          ${e.stories}<br><span style="font-size:9px;font-weight:500;color:var(--text-muted)">stories</span>
+        </div>
+      </div>
+
+      <div style="padding:0 16px 12px;display:flex;gap:5px;flex-wrap:wrap">${intBar}</div>
+
+      <div class="ec-body">
+        <div style="padding:13px 16px;font-size:12px;color:var(--text-mid);line-height:1.7;background:var(--surface2);border-bottom:1px solid var(--border)">${e.desc}</div>
+        <div style="padding:10px 16px 4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted)">Sub-Processes</div>
+        <table style="width:100%;border-collapse:collapse;border-bottom:1px solid var(--border)">${subRows}</table>
+        <div style="padding:12px 16px 4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted)">Sample User Stories</div>
+        <div style="padding:0 16px 14px">${storyItems}</div>
+      </div>
+
+    </div>`;
+  }).join('');
+}
+
+function te(i){document.getElementById('ec'+i).classList.toggle('open')}
+
+function fe(v,btn){
+  document.querySelectorAll('.fbtn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
+  document.querySelectorAll('.ec').forEach(c=>{
+    let show=true;
+    if(v==='1'||v==='2'||v==='3')show=c.dataset.sprint===v;
+    else if(v==='vh')show=c.dataset.cx==='Very High';
+    else if(v==='int')show=c.dataset.int==='y';
+    c.style.display=show?'':'none';
+  });
+}
+
+function renderInts(){
+  document.getElementById('ig').innerHTML=INTS.map(x=>`
+    <div class="icard">
+      <div class="ict">
+        <div class="ich">
+          <div class="ii" style="background:${x.bg};border-color:${x.color}44">${x.icon}</div>
+          <div><div class="in">${x.name}</div><div class="it">${x.type}</div></div>
+        </div>
+        <div class="idir" style="background:${x.bg};color:${x.color};border-color:${x.color}33">${x.dir==='Two-way'?'⇄':x.dir==='One-way (outbound)'?'→':'↔'} ${x.dir}</div>
+        <div class="idesc">${x.desc}</div>
+      </div>
+      <div class="icf">
+        <div class="icfl">Connected Systems</div>
+        <div class="ictags">${x.connects.map(c=>`<span class="stag">${c}</span>`).join('')}</div>
+        <div class="icfl">Data Flows</div>
+        <div>${x.flows.map(f=>`<div class="fli"><span class="fla">→</span>${f}</div>`).join('')}</div>
+      </div>
+    </div>`).join('');
+}
+
+function renderJourney(){
+  document.getElementById('jw').innerHTML=JOURNEY.map((s,i)=>`
+    <div class="js" style="animation-delay:${i*.08}s">
+      <div class="jspine">
+        <div class="jdot" style="background:${s.bg};border-color:${s.color};color:${s.color}">${s.num}</div>
+        ${i<JOURNEY.length-1?'<div class="jline"></div>':''}
+      </div>
+      <div class="jcard">
+        <div class="jtag">${s.epic}</div>
+        <div class="jtitle">${s.title}</div>
+        <div class="jdesc">${s.desc}</div>
+        <div class="jsys">${s.systems.map(x=>`<span class="jsysp" style="color:${x.c};border-color:${x.c}44;background:${x.c}11">${x.n}</span>`).join('')}</div>
+        <div class="jsts">${s.stories.map(x=>`<div class="jst" style="border-left-color:${x.c}"><span class="jstid" style="color:${x.c}">${x.id}</span>${x.t}</div>`).join('')}</div>
+      </div>
+    </div>`).join('');
+}
+
+function tip(e,title,body,color){
+  e.stopPropagation();
+  const t=document.getElementById('tt');
+  document.getElementById('ttt').textContent=title;document.getElementById('ttt').style.color=color;
+  document.getElementById('ttb').textContent=body;t.classList.add('on');mv(e);
+}
+function mv(e){const t=document.getElementById('tt');t.style.left=Math.min(e.clientX+14,window.innerWidth-310)+'px';t.style.top=Math.min(e.clientY+14,window.innerHeight-190)+'px'}
+document.addEventListener('mousemove',mv);
+document.addEventListener('click',e=>{if(!e.target.closest('.fn'))document.getElementById('tt').classList.remove('on')});
+
+function sw(id,btn){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  btn.classList.add('active');document.getElementById('view-'+id).classList.add('active');
+}
+
+
+// ═══ FLOW DIAGRAM — interactive hub & spoke ════════════════════════
+function buildFlow() {
+  const root = document.getElementById('flow-root');
+  if (!root) return;
+
+  const NODES = [
+    {id:'hub', label:'IdealAMS', sub:'Salesforce · core hub', ico:'⚡',
+     px:50, py:50, hub:true,
+     fill:'#EAF3DE', stroke:'#3B6D11', glow:'#3B6D11', tc:'#27500A',
+     desc:'Central Salesforce platform. Every integration and EPIC routes through IdealAMS. Built by 108 ideaspace for MCC.',
+     epics:['14 EPICs total · 925+ stories','10 external integrations','3 sprint phases']},
+
+    {id:'candidate', label:'Candidate entry', sub:'PA Portal · OKTA', ico:'👤',
+     px:50, py:8, fill:'#E6F1FB', stroke:'#185FA5', glow:'#185FA5', tc:'#0C447C',
+     desc:'Physicians access MCC services via the PA Portal (WordPress). OKTA/Auth0 handles SSO with magic-link login.',
+     epics:['Account & Profile Creation · 170 stories','Candidate Portal · 60 stories'],
+     conns:[
+       {to:'hub',      dir:'→', label:'REST API — all candidate data flows to IdealAMS'},
+       {to:'identity', dir:'→', label:'Redirected to Persona for ID verification'},
+       {to:'storage',  dir:'→', label:'Documents uploaded and stored in RavenDB'},
+       {to:'exams',    dir:'→', label:'SSO into RISR Apply for exam registration'},
+       {to:'support',  dir:'→', label:'Phone/email contacts TalkDesk service desk'},
+     ]},
+
+    {id:'identity', label:'Identity & auth', sub:'Persona · OKTA', ico:'🔐',
+     px:83, py:16, fill:'#EEEDFE', stroke:'#534AB7', glow:'#534AB7', tc:'#3C3489',
+     desc:'OKTA/Auth0 + Entra ID provides SSO across all platforms. Persona performs OCR and biometric ID document verification.',
+     epics:['ID Verification (Persona) · 89 stories','Auth0 + Entra ID integration · 30 stories'],
+     conns:[
+       {to:'hub',       dir:'↔', label:'Verify result + OCR data to IdealAMS. SSO tokens issued to all systems'},
+       {to:'candidate', dir:'←', label:'Candidate redirected from PA Portal to Persona hosted flow'},
+       {to:'storage',   dir:'→', label:'Verified ID document stored in RavenDB'},
+       {to:'support',   dir:'→', label:'OKTA SSO tokens used by TalkDesk agent login'},
+       {to:'exams',     dir:'→', label:'OKTA SSO enables staff access to RISR Advance'},
+     ]},
+
+    {id:'support', label:'Support & comms', sub:'TalkDesk · Outlook', ico:'📞',
+     px:93, py:50, fill:'#E6F1FB', stroke:'#185FA5', glow:'#185FA5', tc:'#0C447C',
+     desc:'TalkDesk CCaaS routes inbound candidate calls. Screen pop shows live candidate profile. Cases auto-created in IdealAMS. MS Outlook sends automated emails.',
+     epics:['SDO Process · 69 stories','TalkDesk integration · 35 stories'],
+     conns:[
+       {to:'hub',       dir:'↔', label:'CTI screen pop pulls candidate data from IdealAMS. Cases written back'},
+       {to:'candidate', dir:'←', label:'Candidate calls or emails — TalkDesk routes to agent'},
+     ]},
+
+    {id:'exams', label:'Exams & results', sub:'RISR · Prometric', ico:'📝',
+     px:83, py:84, fill:'#FBEAF0', stroke:'#993556', glow:'#993556', tc:'#72243E',
+     desc:'Two-way integration with RISR Apply and RISR Advance. Prometric delivers physical exams. Very High complexity.',
+     epics:['Exams Process · 85 stories · 🔴 Very High'],
+     conns:[
+       {to:'hub',          dir:'↔', label:'Applications, payments, schedules, results synced both ways with IdealAMS'},
+       {to:'candidate',    dir:'←', label:'Candidate SSO from PA Portal into RISR Apply'},
+       {to:'identity',     dir:'←', label:'Staff SSO from IdealAMS into RISR Advance via OKTA'},
+       {to:'verification', dir:'↔', label:'Exam payment fees processed via Stripe'},
+     ]},
+
+    {id:'verification', label:'Source verification', sub:'ECFMG · Stripe', ico:'🔍',
+     px:50, py:92, fill:'#FCEBEB', stroke:'#A32D2D', glow:'#A32D2D', tc:'#791F1F',
+     desc:'SVR verifies credentials with source institutions. ECFMG for foreign credentials. Stripe processes all fees. Very High complexity with 5 integrations.',
+     epics:['SVR — Source Verification · 120 stories · 🔴 Very High'],
+     conns:[
+       {to:'hub',          dir:'↔', label:'All SVR workflow managed in IdealAMS. Results stored against candidate record'},
+       {to:'identity',     dir:'→', label:'Persona OCR used to verify SVR documents'},
+       {to:'storage',      dir:'→', label:'Verified source documents stored in RavenDB'},
+       {to:'registration', dir:'↔', label:'Stripe used for both SVR and AMR fee collection'},
+       {to:'exams',        dir:'↔', label:'RISR provides exam credential data for SVR cross-reference'},
+     ]},
+
+    {id:'registration', label:'Medical registration', sub:'MRA Portals · Stripe', ico:'🏛',
+     px:17, py:84, fill:'#FAEEDA', stroke:'#854F0B', glow:'#854F0B', tc:'#633806',
+     desc:'AMR for provincial medical registration. ~100 MRA organizations access pre-selected documents via Org Portal. Very High complexity.',
+     epics:['AMR — Medical Registration · 100 stories · 🔴 Very High'],
+     conns:[
+       {to:'hub',          dir:'↔', label:'AMR applications managed in IdealAMS. Org Portal is IdealAMS-powered'},
+       {to:'storage',      dir:'→', label:'AMR documents fetched from RavenDB for MRA review'},
+       {to:'verification', dir:'↔', label:'Stripe handles AMR application fees'},
+       {to:'sharing',      dir:'↔', label:'Pre-selected mandatory documents shared with MRA organizations'},
+     ]},
+
+    {id:'sharing', label:'Data sharing', sub:'CaRMS · Org Portal', ico:'📁',
+     px:7, py:50, fill:'#E1F5EE', stroke:'#0F6E56', glow:'#0F6E56', tc:'#085041',
+     desc:'CaRMS receives one-way outbound candidate data for residency matching (candidate-controlled). Org Portal exposes documents to MRA organizations.',
+     epics:['Document Sharing & File Transfer · 55 stories','CaRMS integration · 25 stories'],
+     conns:[
+       {to:'hub',          dir:'←', label:'IdealAMS to CaRMS one-way: candidate data for residency matching'},
+       {to:'storage',      dir:'↔', label:'Documents pulled from RavenDB for sharing'},
+       {to:'registration', dir:'↔', label:'Org Portal shares AMR docs with ~100 MRA organizations'},
+       {to:'candidate',    dir:'←', label:'Candidate controls exactly what data is shared with CaRMS'},
+     ]},
+
+    {id:'storage', label:'Data & storage', sub:'RavenDB · MINC', ico:'🗄',
+     px:17, py:16, fill:'#E1F5EE', stroke:'#0F6E56', glow:'#0F6E56', tc:'#085041',
+     desc:'RavenDB is the document source of truth (2TB, ~2.8M docs). MINC pre-fills physician profile data during account creation.',
+     epics:['RavenDB integration · 40 stories','MINC integration · 20 stories','ECA Process · 130 stories'],
+     conns:[
+       {to:'hub',          dir:'↔', label:'IdealAMS pushes docs to RavenDB and pulls via ETL sync (near-real-time)'},
+       {to:'candidate',    dir:'←', label:'MINC pre-fills account data when candidate registers'},
+       {to:'identity',     dir:'←', label:'Verified ID documents from Persona stored in RavenDB'},
+       {to:'verification', dir:'←', label:'Source-verified documents stored in RavenDB'},
+       {to:'sharing',      dir:'→', label:'RavenDB supplies documents for CaRMS and Org Portal sharing'},
+       {to:'registration', dir:'→', label:'AMR documents fetched from RavenDB for MRA review'},
+     ]},
+  ];
+
+  const nodeMap = {};
+  NODES.forEach(n => { nodeMap[n.id] = n; });
+
+  let activeId = null;
+
+  function allKeys() {
+    const s = new Set();
+    NODES.forEach(n => (n.conns||[]).forEach(c => s.add([n.id,c.to].sort().join('--'))));
+    return s;
+  }
+
+  function connectedIds(id) {
+    const s = new Set([id, 'hub']);
+    const n = nodeMap[id];
+    (n?.conns||[]).forEach(c => s.add(c.to));
+    if(id !== 'hub') NODES.forEach(n => (n.conns||[]).forEach(c => { if(c.to===id) s.add(n.id); }));
+    return s;
+  }
+
+  function activeKeys(id) {
+    const s = new Set();
+    if(id === 'hub') { allKeys().forEach(k => s.add(k)); return s; }
+    const n = nodeMap[id];
+    (n?.conns||[]).forEach(c => s.add([id,c.to].sort().join('--')));
+    NODES.forEach(n => (n.conns||[]).forEach(c => { if(c.to===id) s.add([n.id,id].sort().join('--')); }));
+    return s;
+  }
+
+  function positionPanel(id) {
+    const panel = root.querySelector('#fpanel-'+id);
+    const card  = root.querySelector('#fcard-'+id);
+    const diag  = root.querySelector('#fdiag');
+    const hub   = root.querySelector('#fcard-hub');
+    if(!panel||!card||!diag) return;
+
+    // Measure panel height while invisible off-screen
+    panel.style.visibility = 'hidden';
+    panel.style.display    = 'block';
+    panel.style.left = '-9999px';
+    panel.style.top  = '-9999px';
+
+    const PW = 258;
+    const PH = 290; // matches max-height:280px
+
+    const dr = diag.getBoundingClientRect();
+    const cr = card.getBoundingClientRect();
+    const hr = hub ? hub.getBoundingClientRect() : null;
+
+    const cx = cr.left - dr.left + cr.width  / 2;
+    const cy = cr.top  - dr.top  + cr.height / 2;
+    const dw = diag.offsetWidth;
+    const dh = diag.offsetHeight;
+
+    // Hub exclusion zone — generous margin
+    const hx  = hr ? (hr.left - dr.left + hr.width  / 2) : dw / 2;
+    const hy  = hr ? (hr.top  - dr.top  + hr.height / 2) : dh / 2;
+    const hW  = hr ? hr.width  + 60 : 200;
+    const hH  = hr ? hr.height + 60 : 180;
+
+    function overlapsHub(l, t) {
+      if (!hr) return false;
+      return (l < hx + hW/2) && (l + PW > hx - hW/2) &&
+             (t < hy + hH/2) && (t + PH > hy - hH/2);
+    }
+    function inBounds(l, t) {
+      return l >= 6 && l + PW <= dw - 6 && t >= 6 && t + PH <= dh - 6;
+    }
+    function clamp(l, t) {
+      return { l: Math.max(6, Math.min(l, dw - PW - 6)),
+               t: Math.max(6, Math.min(t, dh - PH - 6)) };
+    }
+
+    const GAP = 14;
+    const cw = cr.width  / 2;
+    const ch = cr.height / 2;
+
+    // All 8 candidate positions
+    const all = [
+      {l: cx + cw + GAP,      t: cy - PH/2},          // right-mid
+      {l: cx - cw - GAP - PW, t: cy - PH/2},          // left-mid
+      {l: cx - PW/2,          t: cy + ch + GAP},       // below
+      {l: cx - PW/2,          t: cy - ch - GAP - PH},  // above
+      {l: cx + cw + GAP,      t: cy + ch - PH},        // right-top
+      {l: cx - cw - GAP - PW, t: cy + ch - PH},        // left-top
+      {l: cx + cw + GAP,      t: cy - ch},             // right-bottom
+      {l: cx - cw - GAP - PW, t: cy - ch},             // left-bottom
+    ];
+
+    // Prioritise based on which side of diagram the node is on
+    const onLeft   = cx < dw * 0.38;
+    const onRight  = cx > dw * 0.62;
+    const onTop    = cy < dh * 0.38;
+    const onBottom = cy > dh * 0.62;
+
+    let ordered;
+    if      (onLeft  && onTop)    ordered = [all[0],all[2],all[6],all[4],all[3],all[1],all[7],all[5]];
+    else if (onLeft  && onBottom) ordered = [all[0],all[3],all[4],all[6],all[2],all[1],all[5],all[7]];
+    else if (onRight && onTop)    ordered = [all[1],all[2],all[7],all[5],all[3],all[0],all[6],all[4]];
+    else if (onRight && onBottom) ordered = [all[1],all[3],all[5],all[7],all[2],all[0],all[4],all[6]];
+    else if (onLeft)  ordered = [all[0],all[4],all[6],all[2],all[3],all[1],all[5],all[7]];
+    else if (onRight) ordered = [all[1],all[5],all[7],all[2],all[3],all[0],all[4],all[6]];
+    else if (onTop)   ordered = [all[2],all[0],all[1],all[4],all[5],all[3],all[6],all[7]];
+    else if (onBottom)ordered = [all[3],all[0],all[1],all[6],all[7],all[2],all[4],all[5]];
+    else              ordered = all;
+
+    // Pick first that fits AND doesn't overlap hub
+    let best = null;
+    for (const c of ordered) {
+      const {l,t} = clamp(c.l, c.t);
+      if (inBounds(l,t) && !overlapsHub(l,t)) { best={l,t}; break; }
+    }
+    // Fallback: pick least-bad (prefer no hub overlap over in-bounds)
+    if (!best) {
+      for (const c of ordered) {
+        const {l,t} = clamp(c.l, c.t);
+        if (!overlapsHub(l,t)) { best={l,t}; break; }
+      }
+    }
+    // Last resort: just clamp first candidate
+    if (!best) {
+      const {l,t} = clamp(ordered[0].l, ordered[0].t);
+      best = {l,t};
+    }
+
+    panel.style.left       = best.l + 'px';
+    panel.style.top        = best.t + 'px';
+    panel.style.visibility = 'visible';
+  }
+
+  function getCenter(id) {
+    const el   = root.querySelector('#fcard-'+id);
+    const diag = root.querySelector('#fdiag');
+    if(!el||!diag) return {x:0,y:0};
+    const er = el.getBoundingClientRect();
+    const dr = diag.getBoundingClientRect();
+    return { x: er.left - dr.left + er.width/2,
+             y: er.top  - dr.top  + er.height/2 };
+  }
+
+    function drawLines() {
+    const svg = root.querySelector('#fsvg');
+    const diag = root.querySelector('#fdiag');
+    if(!svg||!diag) return;
+    const dw = diag.offsetWidth, dh = diag.offsetHeight;
+    svg.setAttribute('viewBox', `0 0 ${dw} ${dh}`);
+
+    const seen = new Set();
+    let html = `<defs>
+      <marker id="fah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+        <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </marker>
+    </defs>`;
+
+    NODES.forEach(n => {
+      (n.conns||[]).forEach(c => {
+        const key = [n.id, c.to].sort().join('--');
+        if(seen.has(key)) return;
+        seen.add(key);
+        const t = nodeMap[c.to]; if(!t) return;
+        const a = getCenter(n.id), b = getCenter(c.to);
+        html += `<line id="fln-${key}"
+          x1="${a.x.toFixed(1)}" y1="${a.y.toFixed(1)}"
+          x2="${b.x.toFixed(1)}" y2="${b.y.toFixed(1)}"
+          stroke="${n.stroke}" stroke-width="1.5"
+          stroke-dasharray="5 4" opacity="0.2"
+          style="transition:stroke-width .2s,opacity .2s"/>`;
+      });
+    });
+    svg.innerHTML = html;
+  }
+
+  // ── Interaction ───────────────────────────────────────────────
+  function selectNode(id) {
+    if(activeId===id){ clearSel(); return; }
+    activeId = id;
+    const conn = connectedIds(id);
+    const aKeys = activeKeys(id);
+
+    NODES.forEach(n => {
+      const card = root.querySelector('#fcard-'+n.id);
+      const panel = root.querySelector('#fpanel-'+n.id);
+      if(conn.has(n.id)){ card.classList.remove('fdim'); card.classList.add('flit'); }
+      else              { card.classList.add('fdim');   card.classList.remove('flit'); }
+      if(panel) {
+        if(n.id===id) { positionPanel(id); }
+        else { panel.style.display = 'none'; }
+      }
+    });
+
+    allKeys().forEach(key => {
+      const line = root.querySelector('#fln-'+key);
+      if(!line) return;
+      if(aKeys.has(key)){
+        const parts = key.split('--');
+        const col = nodeMap[parts[0]]?.stroke || nodeMap[parts[1]]?.stroke || '#888';
+        line.setAttribute('stroke', col);
+        line.setAttribute('stroke-width', '2.5');
+        line.setAttribute('stroke-dasharray', 'none');
+        line.setAttribute('opacity', '0.9');
+        line.setAttribute('marker-end', 'url(#fah)');
+        line.setAttribute('marker-start', 'url(#fah)');
+      } else {
+        line.setAttribute('stroke-width', '1');
+        line.setAttribute('stroke-dasharray', '5 4');
+        line.setAttribute('opacity', '0.07');
+        line.removeAttribute('marker-end');
+        line.removeAttribute('marker-start');
+      }
+    });
+
+    const hint = root.querySelector('#fhint');
+    if(hint) hint.textContent = id==='hub'
+      ? 'IdealAMS connects to all 8 groups — every integration routes through the core hub'
+      : `${nodeMap[id]?.label} connects to ${connectedIds(id).size-1} other nodes — click another to explore, or click away to reset`;
+  }
+
+  function clearSel() {
+    activeId = null;
+    NODES.forEach(n => {
+      root.querySelector('#fcard-'+n.id)?.classList.remove('flit','fdim');
+      const p = root.querySelector('#fpanel-'+n.id);
+      if(p) p.style.display = 'none';
+    });
+    allKeys().forEach(key => {
+      const line = root.querySelector('#fln-'+key);
+      if(!line) return;
+      const parts = key.split('--');
+      const col = nodeMap[parts[0]]?.stroke || nodeMap[parts[1]]?.stroke || '#999';
+      line.setAttribute('stroke', col);
+      line.setAttribute('stroke-width', '1.5');
+      line.setAttribute('stroke-dasharray', '5 4');
+      line.setAttribute('opacity', '0.2');
+      line.removeAttribute('marker-end');
+      line.removeAttribute('marker-start');
+    });
+    const hint = root.querySelector('#fhint');
+    if(hint) hint.textContent = 'Click any node to explore its connections and data flows';
+  }
+
+
+  // ── Build & inject HTML ──────────────────────────────────────────
+  const cardsHtml = NODES.map(n => {
+    const hubExtra = n.hub
+      ? `<div style="font-size:10px;color:#2E844A;margin-top:6px;border-top:0.5px solid #3B6D1133;padding-top:6px;line-height:1.5">14 EPICs · 925+ stories<br>10 integrations · 3 sprints</div>`
+      : '';
+    return `<div id="fcard-${n.id}" style="
+        position:absolute;left:${n.px}%;top:${n.py}%;
+        transform:translate(-50%,-50%);
+        width:${n.hub?'138px':'116px'};
+        background:${n.fill};border:1.5px solid ${n.stroke};
+        border-radius:${n.hub?'14px':'10px'};
+        padding:${n.hub?'13px 10px':'9px 10px'};
+        text-align:center;cursor:pointer;user-select:none;z-index:2;
+        transition:box-shadow .18s,transform .18s,opacity .18s;
+        --glow:${n.glow}">
+      <div style="font-size:${n.hub?'22px':'18px'};line-height:1;margin-bottom:3px">${n.ico}</div>
+      <div style="font-size:${n.hub?'13px':'11px'};font-weight:600;color:${n.tc};line-height:1.25">${n.label}</div>
+      <div style="font-size:10px;color:${n.tc};opacity:.7;margin-top:2px;line-height:1.2">${n.sub}</div>
+      ${hubExtra}
+    </div>`;
+  }).join('');
+
+  const panelsHtml = NODES.map(n => {
+    const connHtml = (n.conns||[]).map(c => {
+      const t = nodeMap[c.to]; if(!t) return '';
+      return `<div style="display:flex;align-items:flex-start;gap:7px;margin-bottom:5px">
+        <div style="width:5px;height:5px;border-radius:50%;background:${n.stroke};flex-shrink:0;margin-top:4px"></div>
+        <div>
+          <div style="font-size:12px;font-weight:600;color:var(--text,#181818);line-height:1.2;margin-bottom:1px">${n.ico} ${c.dir} ${t.ico} ${t.label}</div>
+          <div style="font-size:11px;color:var(--text-muted,#706E6B);line-height:1.4">${c.label}</div>
+        </div>
+      </div>`;
+    }).join('');
+    const epicHtml = (n.epics||[]).map(e => {
+      const vh = e.includes('Very High')||e.includes('🔴');
+      return `<span style="display:inline-flex;font-size:10px;font-weight:600;padding:2px 8px;border-radius:5px;border:0.5px solid;margin:2px 2px 0 0;background:${vh?'#FCEBEB':n.fill};border-color:${vh?'#F09595':n.stroke};color:${vh?'#791F1F':n.tc}">${e}</span>`;
+    }).join('');
+    return `<div id="fpanel-${n.id}" style="
+        display:none;position:absolute;left:0;top:0;
+        background:var(--surface,#fff);
+        border:0.5px solid var(--border,#e5e5e5);
+        border-top:3px solid ${n.stroke};border-radius:12px;
+        padding:14px 16px;width:252px;z-index:20;
+        max-height:280px;overflow-y:auto;
+        box-shadow:0 4px 20px rgba(0,0,0,.12)">
+      <span id="fclose-${n.id}" style="position:absolute;top:9px;right:11px;cursor:pointer;color:var(--text-muted,#888);font-size:14px;padding:2px 4px;border-radius:4px">✕</span>
+      <div style="font-size:13px;font-weight:600;color:var(--text,#181818);margin-bottom:5px;display:flex;align-items:center;gap:6px">
+        <span style="font-size:16px">${n.ico}</span>${n.label}
+      </div>
+      <div style="font-size:12px;color:var(--text-muted,#706E6B);line-height:1.55;margin-bottom:8px">${n.desc}</div>
+      ${connHtml?`<div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted,#888);font-weight:600;margin:8px 0 5px">Connections &amp; data flows</div>${connHtml}`:''}
+      ${epicHtml?`<div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted,#888);font-weight:600;margin:8px 0 5px">EPICs in this group</div><div>${epicHtml}</div>`:''}
+    </div>`;
+  }).join('');
+
+  root.innerHTML = `
+    <style>
+      .flit{box-shadow:0 0 0 2.5px var(--glow),0 6px 20px rgba(0,0,0,.15)!important;transform:translate(-50%,-50%) scale(1.09)!important}
+      .fdim{opacity:.25!important;transform:translate(-50%,-50%) scale(.94)!important}
+    </style>
+    <div id="fdiag" style="position:relative;width:100%;height:640px;overflow:hidden">
+      <svg id="fsvg" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none"></svg>
+      ${cardsHtml}
+      ${panelsHtml}
+    </div>
+    <p id="fhint" style="text-align:center;font-size:12px;color:var(--text-muted,#888);margin-top:8px;padding-bottom:4px">
+      Click any node to explore its connections and data flows
+    </p>`;
+
+  // Wire clicks
+  NODES.forEach(n => {
+    const card = root.querySelector('#fcard-'+n.id);
+    card.addEventListener('click', e => { e.stopPropagation(); selectNode(n.id); });
+    const closeBtn = root.querySelector('#fclose-'+n.id);
+    if(closeBtn) closeBtn.addEventListener('click', e => { e.stopPropagation(); clearSel(); });
+  });
+  root.querySelector('#fdiag').addEventListener('click', clearSel);
+
+  // Draw lines after layout settles
+  requestAnimationFrame(() => requestAnimationFrame(drawLines));
+}
+
+buildFlow();
+
+
+
+renderEpics();renderInts();renderJourney();
+</script>
+</body>
+</html>
