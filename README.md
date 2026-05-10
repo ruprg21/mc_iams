@@ -1,6 +1,6 @@
-# MCC IdealAMS — System Architecture & Workflow
+System Architecture & Workflow
 
-A single-page interactive HTML dashboard documenting the full system architecture, EPICs, integrations, and candidate journey for the **MCC IdealAMS** Salesforce implementation.
+A single-page interactive HTML dashboard documenting the full system architecture, EPICs, integrations, and candidate journey for the Salesforce implementation.
 
 ## What's inside
 
@@ -9,7 +9,7 @@ A single-page interactive HTML dashboard documenting the full system architectur
 | System Flow | End-to-end workflow diagram across all layers |
 | EPICs & Stories | 14 EPICs with 925+ user stories, filterable by category |
 | Integrations | 10 system integrations with data flow and field mappings |
-| Candidate Journey | Step-by-step candidate lifecycle from application to onboarding |
+| Candidate Journey | Step-by-steps candidate lifecycle from application to onboarding |
 
 ### Key stats
 
